@@ -1,0 +1,11 @@
+# Build artefacts
+nowtv-simulator
+*.test
+
+# Git metadata (not needed in build context)
+.git
+.gitignore
+
+# Docs
+README.md
+CLAUDE.md

@@ -1,0 +1,24 @@
+services:
+  # Single simulator — Living Room
+  simulator:
+    image: rikwatson/nowtv-simulator:latest
+    ports:
+      - "8060:8060"
+    # On Linux, use host networking so SSDP multicast reaches the LAN.
+    # On macOS / Windows Docker Desktop, port mapping is sufficient for
+    # ECP; SSDP auto-discovery won't work without host networking.
+    # network_mode: host   # uncomment on Linux for SSDP discovery
+    command:
+      - --name=Living Room NOW TV
+      - --serial=NTV20240001
+    restart: unless-stopped
+
+  # Uncomment to simulate a second device on the same host:
+  # bedroom:
+  #   image: rikwatson/nowtv-simulator:latest
+  #   ports:
+  #     - "8061:8060"
+  #   command:
+  #     - --name=Bedroom NOW TV
+  #     - --serial=NTV20240002
+  #   restart: unless-stopped
