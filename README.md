@@ -1,5 +1,8 @@
 # NOW TV Simulator
 
+[![Docker Hub](https://img.shields.io/docker/v/rikwatson/nowtv-simulator?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/rikwatson/nowtv-simulator)
+[![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8?logo=go)](https://go.dev)
+
 A lightweight Go program that simulates the HTTP control interface of a
 Roku-powered NOW TV / Sky Stream set-top box.  It lets you develop and test
 [Now Remote](https://github.com/rikwatson/now-tv) — or any other
@@ -134,7 +137,8 @@ UK-focused NOW TV / Sky Stream library:
 
 ## Docker
 
-The easiest way to run the simulator — no Go toolchain needed.
+The easiest way to run the simulator — no Go toolchain needed.  The image is
+published automatically to Docker Hub on every push to `main`.
 
 ### Pull from Docker Hub
 
@@ -148,6 +152,9 @@ With a custom device name:
 docker run -p 8060:8060 rikwatson/nowtv-simulator \
   --name "Bedroom NOW TV" --serial "NTV20240002"
 ```
+
+Available tags: `latest` (main branch), semver tags (`1.0.0`, `1.0`) once
+version tags are pushed to git.
 
 ### docker-compose
 

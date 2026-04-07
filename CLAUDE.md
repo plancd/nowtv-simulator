@@ -120,6 +120,83 @@ curl http://localhost:8060/query/device-info
 curl -o netflix.png http://localhost:8060/query/icon/12
 ```
 
+## Docker
+
+### Public image
+
+The image is published automatically to Docker Hub on every push to `main`:
+
+```
+docker.io/rikwatson/nowtv-simulator:latest
+```
+
+Tags produced by the GitHub Actions workflow (`docker.yml`):
+- `latest` — built from `main`
+- `<branch>` — built from any other branch
+- `1.2.3` / `1.2` — built from semver git tags (`v1.2.3`)
+
+### Running with Docker
+
+```bash
+# Quickest start
+docker run -p 8060:8060 rikwatson/nowtv-simulator
+
+# With custom name / serial
+docker run -p 8060:8060 rikwatson/nowtv-simulator \
+  --name "Bedroom NOW TV" --serial "NTV20240002"
+```
+
+### docker-compose
+
+```bash
+docker compose up
+```
+
+`docker-compose.yml` defines one `simulator` service (port 8060) with a commented
+second-device example.  Edit to enable multi-device simulation.
+
+### SSDP in Docker
+
+SSDP uses UDP multicast which does not cross the Docker bridge by default:
+
+| Platform | Solution |
+|---|---|
+| Linux | Add `network_mode: host` to the compose service |
+| macOS / Windows Docker Desktop | Not supported — use **Add Manually** in Now Remote |
+
+Manual IP entry (Now Remote → Devices → Add Manually) always works regardless
+of networking mode.
+
+### Dockerfile structure
+
+Two-stage build — no Go toolchain in the final image:
+
+```
+Stage 1  golang:1.22-alpine   compiles the binary with CGO_ENABLED=0
+Stage 2  scratch              copies only the binary (~10 MB total image)
+```
+
+Ports declared: `8060/tcp` (ECP HTTP), `1900/udp` (SSDP multicast).
+
+### CI/CD
+
+`.github/workflows/docker.yml` runs on every push to `main` and on semver tags:
+- QEMU + Docker Buildx for `linux/amd64` + `linux/arm64`
+- Pushes to Docker Hub using `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` GitHub secrets
+- Uses GitHub Actions cache (`type=gha`) to speed up layer rebuilds
+- Pull-request builds compile but do **not** push
+
+### Building locally
+
+```bash
+docker build -t nowtv-simulator .
+docker run -p 8060:8060 nowtv-simulator
+
+# Multi-arch (requires buildx + QEMU)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t rikwatson/nowtv-simulator:latest --push .
+```
+
 ## Design notes
 
 - **No external dependencies** — stdlib only so there's no `go.sum` to manage.
