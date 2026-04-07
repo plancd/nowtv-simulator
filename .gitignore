@@ -2,3 +2,7 @@
 nowtv-simulator
 *.test
 
+
+# Environment / credentials — never commit
+.env
+*.p8
