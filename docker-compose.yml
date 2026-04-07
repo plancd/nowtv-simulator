@@ -11,6 +11,9 @@ services:
     command:
       - --name=Living Room NOW TV
       - --serial=NTV20240001
+      # Pass your host machine's LAN IP so Now Remote can reach the simulator.
+      # Find it with: ipconfig getifaddr en0  (macOS)
+      # - --advertise-ip=192.168.1.42
     restart: unless-stopped
 
   # Uncomment to simulate a second device on the same host:

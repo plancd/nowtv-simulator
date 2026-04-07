@@ -52,14 +52,17 @@ Events:
 ```
 go run . --help
 
-  --port          HTTP port (default 8060)
-  --name          Device name shown in app (default "Living Room NOW TV")
-  --model         Model name (default "NOW TV Box")
-  --model-number  Model number (default "NOWTVBOX4K")
-  --serial        Serial number (default "NTV20240001")
-  --sw-version    Software version (default "9.2.0")
-  --lang          Language code (default "en")
-  --country       Country code (default "GB")
+  --port           HTTP port (default 8060)
+  --name           Device name shown in app (default "Living Room NOW TV")
+  --model          Model name (default "NOW TV Box")
+  --model-number   Model number (default "NOWTVBOX4K")
+  --serial         Serial number (default "NTV20240001")
+  --sw-version     Software version (default "9.2.0")
+  --lang           Language code (default "en")
+  --country        Country code (default "GB")
+  --advertise-ip   IP to advertise in SSDP and banner.
+                   Set this to your host machine's LAN IP when running
+                   in Docker so Now Remote can actually reach the simulator.
 ```
 
 Run multiple instances on different ports to simulate multiple devices:
@@ -155,6 +158,27 @@ docker run -p 8060:8060 rikwatson/nowtv-simulator \
 
 Available tags: `latest` (main branch), semver tags (`1.0.0`, `1.0`) once
 version tags are pushed to git.
+
+#### Running in Docker — making the simulator discoverable
+
+Inside a Docker container the simulator detects the container's internal IP
+(e.g. `172.17.0.2`), which is unreachable from your iPhone.  Pass
+`--advertise-ip` set to your **Mac's LAN IP** so SSDP responses and the banner
+show the correct address:
+
+```bash
+# Find your Mac's LAN IP first
+ipconfig getifaddr en0
+
+# Then run with that IP
+docker run -p 8060:8060 rikwatson/nowtv-simulator \
+  --name "Living Room NOW TV" \
+  --advertise-ip 192.168.1.42
+```
+
+Now Remote → **Add Manually** → enter the same IP (`192.168.1.42`), port 8060.
+SSDP auto-discovery still won't work on macOS Docker Desktop (UDP multicast
+limitation), but manual IP entry works perfectly.
 
 ### docker-compose
 

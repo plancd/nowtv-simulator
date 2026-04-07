@@ -45,15 +45,16 @@ var (
 
 func main() {
 	// ── Flags ──────────────────────────────────────────────────────────────
-	port      := flag.Int("port", 8060, "HTTP port to listen on")
-	name      := flag.String("name", "Living Room NOW TV", "User-visible device name")
-	model     := flag.String("model", "NOW TV Box", "Model name")
-	modelNum  := flag.String("model-number", "NOWTVBOX4K", "Model number")
-	serial    := flag.String("serial", "NTV20240001", "Serial number")
-	udn       := flag.String("udn", "015e5108-9000-1046-8035-b0a737964dfb", "UDN (UUID)")
-	swVersion := flag.String("sw-version", "9.2.0", "Software version")
-	lang      := flag.String("lang", "en", "Language code")
-	country   := flag.String("country", "GB", "Country code")
+	port        := flag.Int("port", 8060, "HTTP port to listen on")
+	name        := flag.String("name", "Living Room NOW TV", "User-visible device name")
+	model       := flag.String("model", "NOW TV Box", "Model name")
+	modelNum    := flag.String("model-number", "NOWTVBOX4K", "Model number")
+	serial      := flag.String("serial", "NTV20240001", "Serial number")
+	udn         := flag.String("udn", "015e5108-9000-1046-8035-b0a737964dfb", "UDN (UUID)")
+	swVersion   := flag.String("sw-version", "9.2.0", "Software version")
+	lang        := flag.String("lang", "en", "Language code")
+	country     := flag.String("country", "GB", "Country code")
+	advertiseIP := flag.String("advertise-ip", "", "IP to advertise in SSDP and banner (useful when running in Docker — set to host LAN IP)")
 	flag.Parse()
 
 	// ── State ──────────────────────────────────────────────────────────────
@@ -80,9 +81,13 @@ func main() {
 	}()
 
 	// ── SSDP responder ─────────────────────────────────────────────────────
-	ip := localIP()
+	ip := *advertiseIP
+	if ip == "" {
+		ip = localIP()
+	}
 	if ip == "127.0.0.1" {
 		fmt.Fprintf(os.Stderr, "[warn] could not determine local IP — SSDP will advertise 127.0.0.1\n")
+		fmt.Fprintf(os.Stderr, "[hint] if running in Docker, pass --advertise-ip <your-host-LAN-ip>\n")
 	}
 	advertiseAddr := fmt.Sprintf("%s:%d", ip, *port)
 	go startSSDPResponder(advertiseAddr, *udn, events)
@@ -180,11 +185,70 @@ func activeAppLabel(a App) string {
 // ── Network helpers ───────────────────────────────────────────────────────────
 
 // localIP returns the preferred outbound local IP, falling back to "127.0.0.1".
+// It prefers private LAN addresses (192.168.x.x, 10.x.x.x) over Docker bridge
+// addresses (172.17-31.x.x) so that the advertised address is reachable from
+// other devices on the same WiFi network.
 func localIP() string {
+	// Walk all interfaces and collect candidate IPs, scoring them by preference.
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		best := ""
+		bestScore := 0
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, a := range addrs {
+				var ip net.IP
+				switch v := a.(type) {
+				case *net.IPNet:
+					ip = v.IP
+				case *net.IPAddr:
+					ip = v.IP
+				}
+				if ip == nil || ip.IsLoopback() || ip.To4() == nil {
+					continue
+				}
+				score := ipScore(ip)
+				if score > bestScore {
+					bestScore = score
+					best = ip.String()
+				}
+			}
+		}
+		if best != "" {
+			return best
+		}
+	}
+
+	// Fallback: UDP trick to find the default outbound interface IP.
 	conn, err := net.Dial("udp4", "8.8.8.8:80")
 	if err != nil {
 		return "127.0.0.1"
 	}
 	defer conn.Close()
 	return conn.LocalAddr().(*net.UDPAddr).IP.String()
+}
+
+// ipScore returns a preference score for an IP address.
+// Higher score = more likely to be the LAN IP we want to advertise.
+func ipScore(ip net.IP) int {
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return 0
+	}
+	switch {
+	case ip4[0] == 192 && ip4[1] == 168:
+		return 30 // home/office LAN — highest preference
+	case ip4[0] == 10:
+		return 20 // corporate / VPN LAN
+	case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
+		return 5 // Docker bridge / link-local — low preference
+	default:
+		return 1
+	}
 }
